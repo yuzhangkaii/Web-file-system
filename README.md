@@ -15,10 +15,23 @@
 ```
 `uploadsDir := "./uploads"`
 ```
+
 # 编译
 
 ```
 go build -o my_app
 ```
 
+# 交叉编译
 
+```
+export GOOS=linux GOARCH=amd64; go build -o my_app
+```
+
+# 使用
+
+```
+./my_app 8080
+```
+
+****访问127.0.0.1:8080****
