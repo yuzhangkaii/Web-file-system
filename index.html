@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload and Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 800px;
+            padding: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            text-align: center;
+            color: #333;
+        }
+
+        .upload-section, .files-section {
+            margin-top: 20px;
+        }
+
+        .upload-section form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .custom-file-upload {
+            border: 1px solid #ccc;
+            display: inline-block;
+            padding: 6px 12px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .custom-file-upload:hover {
+            background-color: #0056b3;
+        }
+
+        #uploadFile {
+            display: none;
+        }
+
+        .custom-input {
+            width: 80%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .custom-button {
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .custom-button:hover {
+            background-color: #218838;
+        }
+
+        .delete-button {
+            background-color: #dc3545;
+            margin-left: 10px;
+        }
+
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+
+        .progress {
+            display: none;
+            width: 100%;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .progress-bar {
+            height: 20px;
+            background-color: #007bff;
+            width: 0;
+            transition: width 0.2s;
+        }
+
+        .files-section ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .files-section li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .files-section a {
+            text-decoration: none;
+            color: #007bff;
+        }
+
+        .files-section a:hover {
+            text-decoration: underline;
+        }
+
+        .file-folder {
+            color: #6c757d;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>File Upload</h1>
+        </div>
+        <div class="upload-section">
+            <form id="uploadForm" enctype="multipart/form-data" action="/" method="post">
+                <label for="uploadFile" class="custom-file-upload">
+                    Choose File
+                </label>
+                <input type="file" name="uploadFile" id="uploadFile" required>
+                
+                <input type="text" name="folderName" id="folderName" placeholder="Enter folder name (optional)" class="custom-input">
+
+                <button type="submit" class="custom-button">Upload</button>
+            </form>
+            <div id="progress" class="progress">
+                <div id="progressBar" class="progress-bar"></div>
+                <p id="progressText"></p>
+            </div>
+            <div id="speedText"></div>
+        </div>
+        <div class="files-section">
+            <h2>Uploaded Files</h2>
+            <ul id="fileList">
+                {{range .}}
+                <li>
+                    <span class="file-folder">{{.Folder}} /</span>
+                    <a href="/download/{{.Path}}" open="{{.Name}}">{{.Name}}</a>
+                    <button onclick="deleteFile('{{.Path}}')" class="custom-button delete-button">Delete</button>
+                </li>
+                {{end}}
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        function deleteFile(filePath) {
+            fetch('/files/' + filePath, {
+                method: 'DELETE'
+            }).then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Failed to delete file.');
+                }
+            });
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/');
+
+            const startTime = Date.now();
+            xhr.upload.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    const elapsedTime = (Date.now() - startTime) / 1000; // Time in seconds
+                    const uploadedMB = (event.loaded / (1024 * 1024)).toFixed(2); // Uploaded size in MB
+                    const totalMB = (event.total / (1024 * 1024)).toFixed(2); // Total size in MB
+                    const uploadSpeed = (uploadedMB / elapsedTime).toFixed(2); // Upload speed in MB/s
+
+                    const percentComplete = (event.loaded / event.total) * 100;
+                    document.getElementById('progress').style.display = 'block';
+                    document.getElementById('progressBar').style.width = percentComplete + '%';
+                    document.getElementById('progressText').textContent = `Uploaded ${uploadedMB} MB of ${totalMB} MB (${percentComplete.toFixed(2)}%)`;
+                    document.getElementById('speedText').textContent = `Upload speed: ${uploadSpeed} MB/s`;
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    location.reload();
+                } else {
+                    alert('Failed to upload file.');
+                }
+            };
+
+            xhr.send(formData);
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取Cookie字符串
+            var cookies = document.cookie.split(';');
+    
+            // 遍历Cookie，查找名为access_password的Cookie
+            var accessPassword = null;
+            cookies.forEach(function(cookie) {
+                var parts = cookie.trim().split('=');
+                if (parts[0] === 'access_password') {
+                    accessPassword = parts[1];
+                }
+            });
+    
+            // 与服务器定义的密码进行比较
+            var serverAccessPassword = "{{.AccessPassword}}"; // 这里是服务器定义的密码，可以通过模板注入
+    
+            if (accessPassword === serverAccessPassword) {
+                // 密码匹配，可以进行后续操作
+                console.log('Password matched!');
+                // 可以在这里执行其他操作，如显示上传文件的功能
+            } else {
+                // 密码不匹配，处理未授权访问
+                console.log('Unauthorized access!');
+                // 可以在这里进行未授权访问的处理，如隐藏上传文件的功能或跳转到登录页面
+                window.location.href = '/login'; // 示例：跳转到登录页面
+            }
+        });
+    </script>
+</body>
+</html>
