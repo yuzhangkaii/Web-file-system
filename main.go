@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-const uploadPath = "./uploads"
+const uploadPath = "uploads"
 const accessPassword = "123456"
 
 type FileInfo struct {
@@ -25,7 +25,8 @@ var content embed.FS
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run main.go <port>")
+		fmt.Println("Usage: ./my_app <port>")
+		fmt.Println("Usage: ./my_app 启动端口")
 		return
 	}
 
@@ -36,10 +37,10 @@ func main() {
 	if _, err := os.Stat(uploadsDir); os.IsNotExist(err) {
 		err := os.Mkdir(uploadsDir, 0755)
 		if err != nil {
-			fmt.Printf("创建uploads目录时出错: %v\n", err)
+			fmt.Printf("创建目录时出错: %v\n", err)
 			return
 		}
-		fmt.Println("已创建uploads目录。")
+		fmt.Println("已创建目录。")
 	}
 
 	// 设置HTTP处理程序
@@ -92,6 +93,12 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 
 	// 显示上传文件列表页面
 	files := listFiles(uploadPath)
+
+	// 在传递给模板之前，修改每个文件的路径信息，添加上 uploadPath
+	for i := range files {
+		files[i].Path = filepath.Join(uploadPath, files[i].Path)
+	}
+
 	tmpl, err := template.ParseFS(content, "index.html")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -163,10 +170,23 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 func fileHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodDelete:
+		// 验证访问密码
+		cookie, err := r.Cookie("access_password")
+		if err != nil || cookie.Value != accessPassword {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		filePath := strings.TrimPrefix(r.URL.Path, "/files/")
 		fullPath := filepath.Join(filePath)
 
-		err := os.Remove(fullPath)
+		// 检查filePath是否以uploadPath开头
+		if !strings.HasPrefix(fullPath, uploadPath) {
+			http.Error(w, "Invalid file path", http.StatusBadRequest)
+			return
+		}
+
+		err = os.Remove(fullPath)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
