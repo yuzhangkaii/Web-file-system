@@ -77,14 +77,14 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 func handleMain(w http.ResponseWriter, r *http.Request) {
 	// 检查是否已经设置了访问密码的Cookie
-	_, err := r.Cookie("access_password")
-	if err != nil {
-		// 未设置密码Cookie，重定向到输入密码页面
+	cookie, err := r.Cookie("access_password")
+	if err != nil || cookie.Value != accessPassword {
+		// 未设置密码Cookie或密码不匹配，重定向到输入密码页面
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
-	// 已设置密码Cookie，继续处理文件上传和显示页面的逻辑
+	// 已设置且正确的密码Cookie，继续处理文件上传和显示页面的逻辑
 	if r.Method == http.MethodPost {
 		// 处理文件上传逻辑
 		uploadHandler(w, r)
